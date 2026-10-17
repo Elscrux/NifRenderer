@@ -21,8 +21,63 @@ namespace NifRenderer.UI.Common
 
         public static Action FocusLost;
 
+        public static bool UsesExternalInput;
+
+        public static void SetExternalFocus(bool focused)
+        {
+            UsesExternalInput = true;
+
+            if (HasFocus && !focused)
+                FocusLost?.Invoke();
+
+            HasFocus = focused;
+
+            if (!focused)
+            {
+                CurrentKeyState = default;
+                PreviousKeyState = default;
+                CurrentMouseState = new MouseState(
+                    CurrentMouseState.X,
+                    CurrentMouseState.Y,
+                    CurrentMouseState.ScrollWheelValue,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released,
+                    ButtonState.Released);
+                PreviousMouseState = CurrentMouseState;
+            }
+        }
+
+        public static void SetExternalKeyboardState(Keys[] keys)
+        {
+            UsesExternalInput = true;
+            CurrentKeyState = new KeyboardState(keys);
+        }
+
+        public static void SetExternalMouseState(Vector2 position, ButtonState left, ButtonState right, ButtonState middle, int wheel)
+        {
+            UsesExternalInput = true;
+            CurrentMouseState = new MouseState(
+                (int)MathF.Round(position.X),
+                (int)MathF.Round(position.Y),
+                wheel,
+                left,
+                right,
+                middle,
+                ButtonState.Released,
+                ButtonState.Released);
+        }
+
         public static void GetState(bool focused)
         {
+            if (UsesExternalInput)
+            {
+                PreviousKeyState = CurrentKeyState;
+                PreviousMouseState = CurrentMouseState;
+                return;
+            }
+
             PreviousKeyState = CurrentKeyState;
             PreviousMouseState = CurrentMouseState;
 

@@ -95,7 +95,9 @@ namespace NifRenderer
         {
             try
             {
-                UserInput.Update(IsActive && WindowUtils.HasFocus);
+                UserInput.Update(UserInput.UsesExternalInput
+                    ? UserInput.HasFocus
+                    : IsActive && WindowUtils.HasFocus);
 
                 _uiManager.Update(gameTime);
 

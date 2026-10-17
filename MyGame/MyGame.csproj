@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0-windows</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <!-- Required by MonoGame's OpenGL bindings (unsafe pointer arithmetic in GL dispatch tables). -->
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+        <!-- Required for COM interop on Windows (SDL2 window handles). Omitting this causes a build
+             error on Windows: "Type library exporter is not supported in .NET Core". -->
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Update="Content/**/*">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup>
+    <ProjectReference Include="..\NifRenderer.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+MonoGame Content Builder project file.
+Platform: DesktopGL
+
+Add your content assets here (images, audio, fonts, etc.) and they will be
+compiled and copied to the output directory automatically.
+
+To add content:
+  1. Open this file in the MGCB Editor: dotnet tool run mgcb-editor
+  2. Or edit the XML directly — see MonoGame docs for the schema.
+-->
+<XnaContent xmlns:mg="XnaContent">
+  <Asset Type="Microsoft.Xna.Framework.Content.Pipeline.BuildCoordinatorSettings">
+    <Property Name="OutputDir" Value="bin/$(Platform)" />
+    <Property Name="IntermediateDir" Value="obj/$(Platform)" />
+    <Property Name="Platform" Value="DesktopGL" />
+    <Property Name="Config" Value="$(Config)" />
+    <Property Name="Profile" Value="Reach" />
+    <Property Name="CompressContent" Value="False" />
+    <SourceFiles />
+    <DestFiles />
+  </Asset>
+</XnaContent>

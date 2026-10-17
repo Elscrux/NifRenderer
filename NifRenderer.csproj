@@ -15,6 +15,14 @@
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="AvaloniaRenderer\**" />
+    <Compile Remove="MyGame\**" />
+    <EmbeddedResource Remove="AvaloniaRenderer\**" />
+    <EmbeddedResource Remove="MyGame\**" />
+    <None Remove="AvaloniaRenderer\**" />
+    <None Remove="MyGame\**" />
+  </ItemGroup>
+  <ItemGroup>
     <Using Include="NifRenderer.Editing.Transform" />
   </ItemGroup>
   <ItemGroup>

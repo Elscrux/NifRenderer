@@ -10,9 +10,20 @@ using Avalonia.Threading;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Mutagen.Bethesda;
+using Mutagen.Bethesda.Assets;
+using Mutagen.Bethesda.Environments;
+using Mutagen.Bethesda.Plugins;
+using Mutagen.Bethesda.Plugins.Assets;
+using Mutagen.Bethesda.Skyrim;
+using Mutagen.Bethesda.Skyrim.Assets;
+using NifRenderer.Renderer;
 using NifRenderer.UI;
 using NifRenderer.UI.Common;
 using NifRenderer.UI.Components.Dockers;
+using Key = Avalonia.Input.Key;
+using Size = Avalonia.Size;
+using Transform = NifRenderer.Renderer.Transform;
 namespace MyGame;
 
 public sealed class MonoGameControl : Control {
@@ -83,6 +94,7 @@ public sealed class MonoGameControl : Control {
 
 			field = value;
 
+
 			if (_isInitialized) {
 				Initialize();
 			}
@@ -118,6 +130,46 @@ public sealed class MonoGameControl : Control {
 	protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e) {
 		base.OnAttachedToVisualTree(e);
 		Start();
+		var gameEnvironment = GameEnvironment.Typical.Skyrim(SkyrimRelease.SkyrimSE);
+		var cell = gameEnvironment.LinkCache.Resolve<ICellGetter>(FormKey.Factory("039850:Skyrim.esm"));
+
+		foreach (var placed in cell.Temporary.Concat(cell.Persistent)) {
+			switch (placed) {
+				case IPlacedNpcGetter placedNpc:
+					if (placedNpc.Base.TryResolve(gameEnvironment.LinkCache, out var npc)) {
+						if (npc.Race.TryResolve(gameEnvironment.LinkCache, out var race)) {
+							foreach (var link in race.EnumerateListedAssetLinks()) {
+								if (link.AssetTypeInstance == SkyrimModelAssetType.Instance) {
+									Load(link.DataRelativePath, placedNpc.Placement, placedNpc.Scale);
+								}
+							}
+						}
+					}
+					break;
+				case IPlacedObjectGetter placedObject:
+					if (placedObject.Base.TryResolve(gameEnvironment.LinkCache, out var obj)) {
+						foreach (var link in obj.EnumerateListedAssetLinks()) {
+							if (link.AssetTypeInstance == SkyrimModelAssetType.Instance) {
+								Load(link.DataRelativePath, placedObject.Placement, placedObject.Scale);
+							}
+						}
+					}
+					break;
+			}
+		}
+	}
+
+	private void Load(DataRelativePath dataRelativePath, IPlacementGetter? placement, float? scale) {
+		NifDocker.Instance.Load(
+			new SceneNode {
+				ModelPath = Path.Combine(@"E:\TES\Skyrim\vanilla-files", dataRelativePath.Path),
+				Transform = new Transform {
+					Position = new Vector3(placement?.Position.X ?? 0, placement?.Position.Y ?? 0, placement?.Position.Z ?? 0),
+					Rotation = new Vector3(placement?.Rotation.X ?? 0, placement?.Rotation.Y ?? 0, placement?.Rotation.Z ?? 0),
+					Scale = scale ?? 1.0f
+				},
+				IsVisible = true,
+			});
 	}
 
 	private bool HandleDeviceReset(GraphicsDevice device) {

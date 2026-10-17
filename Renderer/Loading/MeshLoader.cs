@@ -23,11 +23,15 @@ namespace NifRenderer.Renderer.Loading
         public readonly byte[] Pixels = pixels;
     }
 
-    public sealed class LoadedMesh(RenderMesh mesh, string path)
+    public sealed class LoadedMesh(RenderMesh mesh, string path, Transform transform, bool visible)
     {
         public readonly RenderMesh Mesh = mesh;
 
         public readonly string Path = path;
+
+        public readonly Transform Transform = transform;
+
+        public readonly bool Visible = visible;
 
         public readonly List<PendingTexture> Textures = [];
 
@@ -36,7 +40,7 @@ namespace NifRenderer.Renderer.Loading
 
     public sealed class MeshLoader
     {
-        private readonly ConcurrentQueue<string> _requests = new();
+        private readonly ConcurrentQueue<(string Path, Transform Transform, bool Visible)> _requests = new();
 
         private readonly ConcurrentQueue<LoadedMesh> _completed = new();
 
@@ -64,12 +68,12 @@ namespace NifRenderer.Renderer.Loading
             }
         }
 
-        public void Request(string path)
+        public void Request(string path, Transform transform, bool visible = true)
         {
             if (!Path.GetExtension(path).Equals(".nif", StringComparison.CurrentCultureIgnoreCase))
                 return;
 
-            _requests.Enqueue(path);
+            _requests.Enqueue((path, transform, visible));
 
             Pump();
         }
@@ -78,22 +82,22 @@ namespace NifRenderer.Renderer.Loading
 
         public void Pump()
         {
-            string path;
+            (string Path, Transform Transform, bool Visible) request;
 
             lock (_gate)
             {
-                if (_running || !_requests.TryDequeue(out path))
+                if (_running || !_requests.TryDequeue(out request))
                     return;
 
                 _running = true;
 
-                Current = path;
+                Current = request.Path;
             }
 
-            Task.Run(() => Run(path));
+            Task.Run(() => Run(request.Path, request.Transform, request.Visible));
         }
 
-        private void Run(string path)
+        private void Run(string path, Transform transform, bool visible)
         {
             try
             {
@@ -103,7 +107,7 @@ namespace NifRenderer.Renderer.Loading
 
                 var mesh = new RenderMesh(file, path);
 
-                var loaded = new LoadedMesh(mesh, path);
+                var loaded = new LoadedMesh(mesh, path, transform, visible);
 
                 DecodeTextures(loaded);
 
@@ -111,7 +115,7 @@ namespace NifRenderer.Renderer.Loading
             }
             catch (Exception exception)
             {
-                _completed.Enqueue(new LoadedMesh(null, path) { Error = exception });
+                _completed.Enqueue(new LoadedMesh(null, path, transform, visible) { Error = exception });
             }
             finally
             {

@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using NifRenderer.Extensions;
 using NifRenderer.Editing;
+using NifRenderer.Renderer;
 using NifRenderer.UI.Components;
 using NifRenderer.UI.Components.Docking;
 using NifRenderer.Editing.Records;
@@ -89,6 +90,11 @@ namespace NifRenderer.UI.Components.Dockers
         public void Load(string path)
         {
             _renderer.Load(path);
+        }
+
+        public void Load(SceneNode node)
+        {
+            _renderer.Load(node);
         }
 
         public void Load(IEnumerable<string> paths)

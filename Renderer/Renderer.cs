@@ -14,6 +14,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using Transform = NifRenderer.Editing.Transform;
+using Axis = NifRenderer.Editing.Transform.Axis;
+using SceneTransform = NifRenderer.Renderer.Transform;
 
 namespace NifRenderer.Renderer
 {
@@ -213,11 +215,11 @@ namespace NifRenderer.Renderer
 
                 _axisBuffer.Clear();
 
-                AppendWorldLine(_axisBuffer, viewport, new Vector3(-reach, 0f, 0f), new Vector3(reach, 0f, 0f), AxisTint(UITheme.AxisX, Transform.Axis.X), AxisWidth(Transform.Axis.X), fadeStart, fadeEnd, AxisSegments);
+                AppendWorldLine(_axisBuffer, viewport, new Vector3(-reach, 0f, 0f), new Vector3(reach, 0f, 0f), AxisTint(UITheme.AxisX, Axis.X), AxisWidth(Axis.X), fadeStart, fadeEnd, AxisSegments);
 
-                AppendWorldLine(_axisBuffer, viewport, new Vector3(0f, -reach, 0f), new Vector3(0f, reach, 0f), AxisTint(UITheme.AxisY, Transform.Axis.Y), AxisWidth(Transform.Axis.Y), fadeStart, fadeEnd, AxisSegments);
+                AppendWorldLine(_axisBuffer, viewport, new Vector3(0f, -reach, 0f), new Vector3(0f, reach, 0f), AxisTint(UITheme.AxisY, Axis.Y), AxisWidth(Axis.Y), fadeStart, fadeEnd, AxisSegments);
 
-                AppendWorldLine(_axisBuffer, viewport, new Vector3(0f, 0f, -reach), new Vector3(0f, 0f, reach), AxisTint(UITheme.AxisZ, Transform.Axis.Z), AxisWidth(Transform.Axis.Z), fadeStart, fadeEnd, AxisSegments);
+                AppendWorldLine(_axisBuffer, viewport, new Vector3(0f, 0f, -reach), new Vector3(0f, 0f, reach), AxisTint(UITheme.AxisZ, Axis.Z), AxisWidth(Axis.Z), fadeStart, fadeEnd, AxisSegments);
 
                 _axisCount = _axisBuffer.Count;
 
@@ -259,16 +261,16 @@ namespace NifRenderer.Renderer
             return 1f - (t * t * (3f - 2f * t));
         }
 
-        private Transform.Axis? _axisKeyLock;
+        private Axis? _axisKeyLock;
 
-        private static bool IsAxisLocked(Transform.Axis axis) =>
+        private static bool IsAxisLocked(Axis axis) =>
             TransformOperator.Instance.Active && TransformOperator.Instance.Constraint.LockedAxis == axis;
 
         private const int HelperWidth = 1;
 
         private static readonly Color AxisLockBase = new(220, 220, 220);
 
-        private static Color AxisTint(Color axisColor, Transform.Axis axis)
+        private static Color AxisTint(Color axisColor, Axis axis)
         {
             var baseColor = IsAxisLocked(axis) ? AxisLockBase : UITheme.GridLine;
 
@@ -287,7 +289,7 @@ namespace NifRenderer.Renderer
             (byte)Math.Clamp(color.B + amount, 0, 255),
             color.A);
 
-        private static int AxisWidth(Transform.Axis axis) => AxisThickness;
+        private static int AxisWidth(Axis axis) => AxisThickness;
 
         private readonly List<VertexPositionColor> _lockBuffer = [];
 
@@ -562,27 +564,27 @@ namespace NifRenderer.Renderer
 
             var color = locked switch
             {
-                Transform.Axis.X => UITheme.AxisX,
+                Axis.X => UITheme.AxisX,
 
-                Transform.Axis.Y => UITheme.AxisY,
+                Axis.Y => UITheme.AxisY,
 
                 _ => UITheme.AxisZ
             };
 
             var from = locked switch
             {
-                Transform.Axis.X => new Vector3(-reach, 0f, 0f),
+                Axis.X => new Vector3(-reach, 0f, 0f),
 
-                Transform.Axis.Y => new Vector3(0f, -reach, 0f),
+                Axis.Y => new Vector3(0f, -reach, 0f),
 
                 _ => new Vector3(0f, 0f, -reach)
             };
 
             var to = locked switch
             {
-                Transform.Axis.X => new Vector3(reach, 0f, 0f),
+                Axis.X => new Vector3(reach, 0f, 0f),
 
-                Transform.Axis.Y => new Vector3(0f, reach, 0f),
+                Axis.Y => new Vector3(0f, reach, 0f),
 
                 _ => new Vector3(0f, 0f, reach)
             };
@@ -998,7 +1000,12 @@ namespace NifRenderer.Renderer
 
         public string LoadingName => System.IO.Path.GetFileName(_loader.Current);
 
-        public void Load(string path) => _loader.Request(path);
+        public void Load(string path) => Load(path, new SceneTransform(Vector3.Zero, Vector3.Zero, 1f));
+
+        public void Load(SceneNode node) => Load(node.ModelPath, node.Transform, node.IsVisible);
+
+        public void Load(string path, SceneTransform transform, bool visible = true) =>
+            _loader.Request(path, transform, visible);
 
         public void Update()
         {
@@ -1029,7 +1036,9 @@ namespace NifRenderer.Renderer
 
                 loaded.Mesh.TexturedCount = loaded.Textures.Count;
 
-                _objects.Add(new RenderObject(loaded.Mesh, loaded.Path, $"obj{++_nameCounter}"));
+                var item = new RenderObject(loaded.Mesh, loaded.Path, $"obj{++_nameCounter}", loaded.Transform);
+                item.SetVisible(loaded.Visible);
+                _objects.Add(item);
 
                 TryLoadSliders(loaded.Mesh, loaded.Path);
 
@@ -1463,6 +1472,8 @@ namespace NifRenderer.Renderer
 
             foreach (var item in _objects)
             {
+                _effect.Parameters["xWorld"]?.SetValue(item.WorldMatrix);
+
                 foreach (var shape in item.Mesh.RenderShapes)
                 {
                     if (!shape.Visible)
@@ -2078,10 +2089,7 @@ namespace NifRenderer.Renderer
                 if (!item.AnyVisible)
                     continue;
 
-                if (!item.Mesh.IntersectsBound(near, direction))
-                    continue;
-
-                var shape = item.Mesh.RayPick(near, direction, out var distance);
+                var shape = item.RayPick(near, direction, out var distance);
 
                 if (shape != null && distance >= 0f && distance < bestDistance)
                 {
@@ -2183,14 +2191,14 @@ namespace NifRenderer.Renderer
             _effect.CurrentTechnique = _effect.Techniques["ColoredNoShading"];
 
             foreach (var item in _objects)
-                item.Mesh.Draw(device, _effect);
+                item.Draw(device, _effect);
 
             device.BlendState = BlendState.AlphaBlend;
 
             device.DepthStencilState = DepthStencilState.DepthRead;
 
             foreach (var item in _objects)
-                item.Mesh.DrawBlended(device, _effect);
+                item.DrawBlended(device, _effect);
 
             device.BlendState = BlendState.Opaque;
 
@@ -2199,7 +2207,7 @@ namespace NifRenderer.Renderer
             if (ShowWireframe && !Vertices.Active)
             {
                 foreach (var item in _objects)
-                    item.Mesh.DrawWireframe(device, _effect, Color.Red);
+                    item.DrawWireframe(device, _effect, Color.Red);
             }
 
             if (Vertices.Active)
@@ -2207,7 +2215,7 @@ namespace NifRenderer.Renderer
                 GlLineWidth(WireframeWidth);
 
                 foreach (var item in _objects)
-                    item.Mesh.DrawWireframe(device, _effect, Vertices.LineColor, Vertices.ContainsTarget);
+                    item.DrawWireframe(device, _effect, Vertices.LineColor, Vertices.ContainsTarget);
 
                 GlLineWidth(1f);
 
